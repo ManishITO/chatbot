@@ -1,0 +1,21 @@
+# Ignore Python virtual environment
+venv_1/
+
+# Ignore environment variable files
+.env
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+
+# Ignore OS and editor files
+.DS_Store
+Thumbs.db
+
+# Ignore log files
+*.log
+
+# Ignore specific script
+app_0.py
+
+app_1.py

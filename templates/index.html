@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>AI Chatbot</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@10.7.2/lib/languages/python.min.js"></script>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/a11y-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+</head>
+
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <h1>Cybersecurity Assistant</h1>
+      <p class="subtitle">Ask me anything about cybersecurity, information security, and digital safety</p>
+      <button id="clear-chat" onclick="clearChat()">Clear Chat</button>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-container">
+      <textarea id="user-input" placeholder="Type your message here..." rows="3"></textarea>
+      <button onclick="sendMessage()" id="send-button">Send</button>
+    </div>
+  </div>
+
+  <script>
+    setInterval(highlightAll,1000);
+    // Function to highlight code using highlight.js library
+    function highlightAll() {
+      document.querySelectorAll("pre code").forEach(block => {
+        hljs.highlightBlock(block);
+      });
+    }
+
+    // Generate a unique session ID
+    const sessionId = Math.random().toString(36).substring(7);
+    let isProcessing = false;
+
+    function createMessageElement(content, isUser) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+      
+      const avatar = document.createElement('img');
+      avatar.src = isUser 
+          ? "{{ url_for('static', filename='images/user.jfif') }}"
+          : "{{ url_for('static', filename='images/gpt.jpg') }}";
+      avatar.className = 'avatar';
+      
+      const textDiv = document.createElement('div');
+      textDiv.className = 'message-text';
+      textDiv.textContent = content;
+      
+      messageDiv.appendChild(avatar);
+      messageDiv.appendChild(textDiv);
+      return messageDiv;
+    }
+
+    async function sendMessage() {
+      if (isProcessing) return;
+
+      const userInput = document.getElementById('user-input');
+      const chatMessages = document.getElementById('chat-messages');
+      const message = userInput.value.trim();
+      
+      if (!message) return;
+      
+      // Disable input while processing
+      isProcessing = true;
+      document.getElementById('send-button').disabled = true;
+      userInput.disabled = true;
+
+      // Add user message to chat
+      chatMessages.appendChild(createMessageElement(message, true));
+      userInput.value = '';
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      try {
+        const response = await fetch('/api', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Session-ID': sessionId
+          },
+          body: JSON.stringify({ message: message })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        // Add bot response to chat
+        chatMessages.appendChild(createMessageElement(data.response, false));
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      } catch (error) {
+        // Handle error
+        const errorMessage = createMessageElement(
+          `Sorry, there was an error: ${error.message}`, 
+          false
+        );
+        errorMessage.classList.add('error-message');
+        chatMessages.appendChild(errorMessage);
+      } finally {
+        // Re-enable input
+        isProcessing = false;
+        document.getElementById('send-button').disabled = false;
+        userInput.disabled = false;
+        userInput.focus();
+      }
+    }
+
+    async function clearChat() {
+      const chatMessages = document.getElementById('chat-messages');
+      
+      try {
+        await fetch('/clear', {
+          method: 'POST',
+          headers: {
+            'X-Session-ID': sessionId
+          }
+        });
+        chatMessages.innerHTML = '';
+      } catch (error) {
+        console.error('Error clearing chat:', error);
+      }
+    }
+
+    // Handle Enter key to send message
+    document.getElementById('user-input').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+
+</html>
